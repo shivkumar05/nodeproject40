@@ -36,6 +36,7 @@ const routineSchema = new mongoose.Schema(
         id: { type: String, require: true },
         session_id: { type: Number, require: true },
         unit: { type: String, require: true },
+        youtube_url: { type: String, require: true },
         video_url: { type: String, require: true },
         thumb_url: { type: String, require: true },
         sets: [

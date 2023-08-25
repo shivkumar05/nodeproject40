@@ -275,7 +275,7 @@ app.get(
       let arr2 = [];
 
       let getVideo = await uploadDevice.find({ $or: [filter] });
-      for (let i = 0; i > getVideo.length; i++) {}
+      for (let i = 0; i > getVideo.length; i++) { }
       arr2.push(...getVideo);
       let OnGoingData = await onGoingDrillModel.find({ $or: [filter] });
       arr2.push(...OnGoingData);
@@ -421,7 +421,7 @@ app.post(
       obj["comment"] = MyDrillCreated.comment;
       obj["video_url"] = MyDrillCreated.video_url;
       obj["thumb_url"] = MyDrillCreated.thumb_url;
-      
+
 
       return res.status(201).send({
         status: true,
@@ -2283,127 +2283,72 @@ app.post(
   }
 );
 
-//=========================================================
+//============================[ get all time spent from workout ]=============================
+const moment = require("moment");
+app.get("/:userId/getalltimespent", commnMid.jwtValidation, commnMid.authorization, async (req, res) => {
+  try {
+    const userId = req.params.userId;
 
-// app.get(
-//   "/:userId/calculatedayTotalTime",
-//   commnMid.jwtValidation,
-//   commnMid.authorization,
-//   async function (req, res) {
-//   try {
-//     let userId = req.params.userId;
-//     let queryDate = req.query.date;
+    const start_date = moment(req.query.start_date, "DD-MM-YYYY");
+    const end_date = moment(req.query.end_date, "DD-MM-YYYY");
 
-//     // let routines = await routineModel.find({ userId: userId });
-//     let workouts = await workoutModel.find({ userId: userId });
+    const workouts = await workoutModel.find({
+      userId: userId,
+      date: { $gte: start_date.format("DD-MM-YYYY"), $lte: end_date.format("DD-MM-YYYY") },
+    });
 
-//     let allDates = [];
+    const aggregatedData = {};
 
-//     // for (var i = 0; i < routines.length; i++) {
-//     //   var routine = routines[i];
-//     //   allDates = allDates.concat(routine.dates);
-//     // }
+    for (let date = start_date; date <= end_date; date.add(1, "day")) {
+      const current_date = date.format("DD-MM-YYYY");
+      const workoutData = workouts.filter((workout) => workout.date === current_date);
+      
+      if (workoutData.length > 0) {
+        let totalDistanceCovered = 0;
+        let totalBallsBowled = 0;
+        let totalMinutesBatted = 0;
+        let totalTotalTime = 0;
 
-//     for (var i = 0; i < workouts.length; i++) {
-//       var workout = workouts[i];
-//       allDates.push({ date: workout.date, complete: workout.complete });
-//     }
+        workoutData.forEach((workout) => {
+          totalDistanceCovered += workout.distance_coverd || 0;
+          totalBallsBowled += workout.balls_bowled || 0;
+          totalMinutesBatted += workout.minutes_batted || 0;
+          totalTotalTime += workout.total_time || 0;
+        });
 
-//     let uniqueDates = Array.from(new Set(allDates.map((date) => date.date)));
-//     if (queryDate) {
-//       uniqueDates = uniqueDates.filter((date) => date === queryDate);
-//     }
+        aggregatedData[current_date] = {
+          totaltime: totalTotalTime,
+          "minutes_battes": totalMinutesBatted,
+          "balls_bowled": totalBallsBowled,
+          "distance_covered": totalDistanceCovered,
+        };
+      } else {
+        aggregatedData[current_date] = {
+          totaltime: 0,
+          "minutes_battes": 0,
+          "balls_bowled": 0,
+          "distance_covered": 0,
+        };
+      }
+    }
 
-//     let response = [];
+    const responseData = Object.entries(aggregatedData).map(([date, values]) => ({
+      date,
+      ...values,
+    }));
 
-//     uniqueDates.forEach((date) => {
-//       let groups = {};
-
-//       routines.forEach((routine) => {
-//         let group = parseInt(routine.group);
-//         let trueCount = 0;
-//         let groupDuration = routine.duration;
-
-//         routine.dates.forEach((routineDate) => {
-//           if (routineDate.date === queryDate && routineDate.complete === true) {
-//             trueCount++;
-//           }
-//         });
-
-//         // if (!groups[group]) {
-//         //   groups[group] = {
-//         //     complete: 0,
-//         //     totalDuration: 0,
-//         //   };
-//         // }
-
-//         groups[group].complete += trueCount;
-//         groups[group].totalDuration += trueCount * groupDuration;
-//       });
-
-//       workouts.forEach((workout) => {
-//         let group = parseInt(workout.group);
-//         let completeCount = workout.complete ? 1 : 0;
-//         let workoutDuration = workout.total_time || 0;
-//         let minutesBatted = workout.minutes_batted || 0;
-//         let ballsBowled = workout.balls_bowled || 0;
-//         let distanceCovered = workout.distance_coverd || 0;
-
-//         if (!groups[group]) {
-//           groups[group] = {
-//             complete: 0,
-//             totalDuration: 0,
-//             totalMinutesBatted: 0,
-//             totalBallsBowled: 0,
-//             totalDistanceCovered: 0,
-//           };
-//         }
-
-//         groups[group].complete += completeCount;
-//         groups[group].totalDuration += completeCount * workoutDuration;
-//         groups[group].totalMinutesBatted += completeCount * minutesBatted;
-//         groups[group].totalBallsBowled += completeCount * ballsBowled;
-//         groups[group].totalDistanceCovered += completeCount * distanceCovered;
-//       });
-
-//       let data = Object.entries(groups).map(
-//         ([group, { complete, totalDuration, totalMinutesBatted, totalBallsBowled, totalDistanceCovered }]) => ({
-//           group: parseInt(group),
-//           complete,
-//           duration: totalDuration,
-//           minutesBatted: totalMinutesBatted,
-//           ballsBowled: totalBallsBowled,
-//           distanceCovered: totalDistanceCovered,
-//         })
-//       );
-
-//       response.push({
-//         title: date,
-//         data,
-//       });
-//     });
-
-//     if (response.length > 0) {
-//       return res.status(200).send({
-//         status: true,
-//         message: "Get Day Wise Time Spent data",
-//         data: response,
-//       });
-//     } else {
-//       return res.status(200).send({
-//         status: true,
-//         message: "Get Day Wise Time Spent data",
-//         data: [],
-//       });
-//     }
-//   } catch (error) {
-//     return res.status(500).send({
-//       status: false,
-//       message: error.message,
-//     });
-//   }
-// }
-// );
+    return res.status(200).json({
+      status: true,
+      message: "Success",
+      data: responseData,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+});
 
 
 

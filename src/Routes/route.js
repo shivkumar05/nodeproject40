@@ -62,6 +62,12 @@ Router.get(
   battingController.getWorkoutExercise
 );
 Router.get(
+  "/:userId/getCompletedExercises",
+  commnMid.jwtValidation,
+  commnMid.authorization,
+  battingController.getCompletedExercises
+);
+Router.get(
   "/:userId/getDrillList",
   commnMid.jwtValidation,
   commnMid.authorization,

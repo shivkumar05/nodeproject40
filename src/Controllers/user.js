@@ -758,7 +758,6 @@ const createRoutine = async function (req, res) {
       time,
       end_time,
       duration,
-      // note,
       category,
       drill_id,
       repetation,
@@ -830,7 +829,6 @@ const createRoutine = async function (req, res) {
       time,
       end_time,
       duration,
-      // note,
       category,
       drill_id,
       repetation,
@@ -2773,7 +2771,7 @@ const getDayWiseTimeSpent = async function (req, res) {
       routines.forEach((routine) => {
         let group = parseInt(routine.group);
         let trueCount = 0;
-        let groupDuration = routine.duration;
+        let groupDuration = routine.duration || 0; 
 
         routine.dates.forEach((routineDate) => {
           if (routineDate.date === queryDate && routineDate.complete === true) {
@@ -2826,6 +2824,9 @@ const getDayWiseTimeSpent = async function (req, res) {
     });
   }
 };
+
+
+
 
 //============[ Get Weekly Wise Time Spend ]===================
 const getWeekWiseTimeSpent = async function (req, res) {
@@ -3279,17 +3280,15 @@ const getRecentAndLongTermAverage = async function (req, res) {
 
       currentDate.setDate(currentDate.getDate() + 7);
     }
-
     if (totalWeeks > 0) {
-      let monthlyTotalDays = totalWeeks * 7;
-      let monthlyAvg =
+      let totalMonthlyAverage =
         (monthlyAverageSleep +
-          monthlyAverageMood +
-          monthlyAverageEnergy +
-          monthlyAverageStressed +
-          monthlyAverageSore) /
-        (monthlyTotalDays * 5);
-      longTermAverage = monthlyAvg.toFixed(2);
+         monthlyAverageMood +
+         monthlyAverageEnergy +
+         monthlyAverageStressed +
+         monthlyAverageSore)/5;
+      
+       longTermAverage = (totalMonthlyAverage / totalWeeks).toFixed(2);
     }
 
     let testDate = await readinessSurveyModel.findOne({
@@ -3328,6 +3327,7 @@ const getRecentAndLongTermAverage = async function (req, res) {
     });
   }
 };
+
 
 //************************************[ Snc/Coach Section]*************************************
 //==========================[Snc/coach register]================================================
@@ -3543,14 +3543,13 @@ const getDayWiseEWMA = async function (req, res) {
     let queryDate = req.query.date;
 
     var routines = await EWMAModel.find({ userId: userId });
-
+    // console.log(routines)
     var getSessionExercise = [];
 
     if (queryDate) {
       getSessionExercise = routines.filter(
         (routine) => routine.date === queryDate
       );
-
       if (getSessionExercise.length === 0) {
         getSessionExercise = [
           {
@@ -3592,6 +3591,8 @@ const getDayWiseEWMA = async function (req, res) {
     });
   }
 };
+
+
 
 //=========[Get Week and Month Wise EWMA]==========================
 const getWeekAndMonthWiseEwma = async function (req, res) {
@@ -4019,6 +4020,41 @@ const getWorkoutExercise = async function (req, res) {
   }
 };
 
+//====================[ Get session exercise  with pages count ]===========/
+
+const getCompletedExercises = async function (req, res) {
+  try {
+    const userId = req.params.userId;
+    let page = parseInt(req.query.page) || 1;
+    let count = parseInt(req.query.count) || 10;
+
+    let startIndex = (page - 1) * count;
+
+    const totalWorkouts = await session_exerciseModel.countDocuments({ userId: userId });
+
+    const findAllWorkouts = await session_exerciseModel.find({ userId: userId })
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(count);
+
+    return res.status(200).send({
+      status: true,
+      msg: `Get completed exercises of all routines successfully (Page ${page}, Count ${count})`,
+      Exercises: findAllWorkouts,
+      currentPage: page,
+      count: count,
+      totalWorkouts: totalWorkouts,
+    });
+
+  } catch (error) {
+    return res.status(500).send({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+
 //===================[ Update Routine Field]===========================
 const updateRoutineField = async function (req, res) {
   try {
@@ -4026,8 +4062,8 @@ const updateRoutineField = async function (req, res) {
     let routineId = req.body._id;
     let updatedFields = { ...req.body };
 
-    delete updatedFields._id; 
-    delete updatedFields.userId; 
+    delete updatedFields._id;
+    delete updatedFields.userId;
 
     let findFields = await routineModel.findByIdAndUpdate(
       { _id: routineId, userId: userId },
@@ -4106,6 +4142,7 @@ const deleteDrill = async function (req, res) {
     }
     var findWorkout = await workoutModel.find({
       userId: userId,
+      routine_id: routineId,
       date: date,
     });
     for (let i = 0; i < findWorkout.length; i++) {
@@ -4116,6 +4153,8 @@ const deleteDrill = async function (req, res) {
     return res.status(200).send({
       status: true,
       msg: "Delete Drill and Workout Successfully",
+      deletedDrills: deleteDri,
+      deletedWorkouts: deleteWork,
     });
   } catch (error) {
     return res.status(500).send({
@@ -4141,11 +4180,21 @@ const deleteExercise = async function (req, res) {
       var deleteExe = await session_exerciseModel.findByIdAndDelete({
         _id: deleteExericises[i]._id,
       });
+    };
+    var findWorkout = await workoutModel.find({
+      userId: userId,
+      routine_id: routineId,
+      date: date,
+    });
+    for (let i = 0; i < findWorkout.length; i++) {
+      var deleteWork = await workoutModel.findByIdAndDelete({
+        _id: findWorkout[i]._id,
+      });
     }
     return res.status(200).send({
       status: true,
-      msg: "Delete Exercises Successfully",
-      // data: deleteExe,
+      msg: "Delete Exercises and workout Successfully",
+      data: deleteExe, deleteWork
     });
   } catch (error) {
     return res.status(500).send({
@@ -4336,6 +4385,7 @@ module.exports = {
   getTotalWorkload,
   getDrillList,
   getWorkoutExercise,
+  getCompletedExercises,
   updateRoutineField,
   getCustomExercise,
   deleteDrill,
